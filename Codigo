@@ -1,0 +1,34 @@
+Public Sub Criar_Tabela()
+    Dim Tabela As Gerar_Tabela
+    Dim Resp As Integer
+    Dim Continuar As Integer
+    Dim Nome As String 'Nome do usuário
+    
+    Application.ScreenUpdating = False 'Desativa atualização de tela
+    
+    Set Tabela = New Gerar_Tabela 'Cria a tabela
+
+    Tabela.Tranferir_Dados 'Transfere os dados
+    
+    If Tabela.Transferido Then 'Caso tenha transferido
+        
+        Nome = Mid(Application.UserName, 1, InStr(1, Application.UserName, " ", vbTextCompare) - 1) 'Recebe o nome
+    
+        Continuar = vbNo 'Zera a variável
+        
+        Do While Continuar = vbNo 'Enquanto for não confirma, faz o loop
+        
+            Resp = MsgBox("Deseja Verificar GU's?", vbYesNo, Nome & ",") 'Pega a resposta do usuário
+        
+            If Resp = vbYes Then 'Caso seja sim
+                Tabela.Adicionar_Referencia 'Adiciona a referência
+                'Continuar = vbYes 'Marca para não continuar no loop
+                Exit Do
+            End If
+            Continuar = MsgBox("Confirma sua Resposta?", vbYesNo, "Continuar") 'Caso a pessoa queira repetir
+        Loop
+        
+    End If
+    
+    Application.ScreenUpdating = True 'Ativa atualização de tela
+End Sub
