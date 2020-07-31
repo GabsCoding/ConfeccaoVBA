@@ -1,0 +1,140 @@
+Private Salvo As Boolean 'Variável de salvamento
+
+Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
+    If LCase(ThisWorkbook.Name) Like "* modelo*" Then 'Caso seja o arquivo origem
+        If Not Salvo Then 'Se não foi salvo ainda
+            Dim Plan As Worksheet
+            Dim Dados As Range 'Variável da planilha
+            
+            For Each Plan In ThisWorkbook.Sheets
+                Set Dados = Plan.Cells.Find("*") 'Procura por dados
+                
+                If Not Dados Is Nothing Then
+                    Dim Nome As String 'Nome do usuário
+                    Dim Caminho As String 'Onde vai salvar
+                    Dim Pasta As String 'Nome da pasta
+                    Dim Data As String 'Data do salvamento
+                    Dim Pos As Integer 'Variável auxiliar para strings com espaço
+                    Dim I As Integer 'Percorre as planilhas
+                    Dim NomeArq As String 'Nome do arquivo
+                    Dim TemPasta As Boolean 'Verifica se tem a pasta
+                    Dim TemArq As Boolean 'Verifica se o aquivo já existe
+                    
+                    
+                    Caminho = ThisWorkbook.Path 'Caminho do arquivo
+                    Nome = Application.UserName 'Nome do usuário
+                    
+                    Pos = InStr(1, Nome, " ", vbTextCompare) 'Recebe a posição do espaço
+                    
+                    If Pos > 0 Then 'Caso tenha espaço no nome
+                        Nome = Mid(Nome, 1, Pos - 1) 'Retira o espaço
+                    End If
+                    
+                    Nome = UCase(Mid(Nome, 1, 1)) & LCase(Mid(Nome, 2, Len(Nome) - 1)) 'Capitaliza o texto
+                    
+                    Data = Replace(CStr(Date), "/", ".") 'Recebe a data de hoje trocando "/" por "." para evitar erro ao salvar o arquivo
+                    
+                    Caminho = Caminho & "\" 'Caminho interno de onde a pasta está
+                    
+                    Pasta = Dir(Caminho, vbDirectory) 'Recebe a localização
+                    
+                    Do Until Pasta Like "" 'percorre até achar a pasta
+                        If LCase(Pasta) Like LCase(Nome) Then
+                            TemPasta = True 'Informo que tem a pasta
+                            Exit Do 'Saio do loop
+                        End If
+                        
+                        Pasta = Dir() 'Percorre as pastas
+                    Loop
+                    
+                    Caminho = Caminho & Nome 'Informa o caminho da pasta
+                    
+                    If Not TemPasta Then 'Caso não tenha a pasta
+                        MkDir Caminho 'Cria a pasta com o nome do usuário
+                    End If
+                    
+                    Caminho = Caminho & "\" 'Pega o acesso interno do caminho
+                    
+ArquivoJaExiste:
+                    NomeArq = InputBox("Favor Digite um Nome para Salvar:", "Arquivo Novo")
+                    
+                    If NomeArq Like "" Then
+                        MsgBox "Nenhum Nome Válido Inserido!", vbOKOnly, "Erro ao Salvar" 'Informa ao usuário
+                        Cancel = True 'Cancela o salvamento
+                        Exit Sub 'Sai da execução
+                    End If
+                    
+                    NomeArq = NomeArq & " - " & Data & ".xlsm" 'Adiciona a extensão ao arquivo
+                    
+                    Pasta = Dir(Caminho)
+                    
+                    Do Until Pasta Like "" 'Percorre procurando o arquivo
+                        If LCase(Pasta) Like LCase(NomeArq) Then
+                            TemArq = True 'Caso ache informa
+                            Exit Do
+                        End If
+                        
+                        Pasta = Dir() 'passa para o próximo
+                        
+                    Loop
+                    
+                    If Not TemArq Then
+                    
+                        Caminho = Caminho & NomeArq  'Informa o caminho do arquivo
+                        
+                        ThisWorkbook.SaveCopyAs Caminho 'Salva uma cópia do arquivo
+                        
+                        Workbooks.Open Caminho 'Abre a cópia salva
+                        
+                        If ThisWorkbook.Sheets.Count > 1 Then 'Verifica se tem mais de 1
+                        
+                            Application.DisplayAlerts = False
+                            
+                            For I = ThisWorkbook.Sheets.Count To 2 Step -1 'Caso tenha percorre as planilhas
+                                ThisWorkbook.Sheets(I).Delete 'Deleta, deixando apenas 1
+                            Next I
+                        End If
+                        
+                        With ThisWorkbook.Sheets(1)
+                            .Name = "Evento" 'Renomeia a planilha
+                            .Cells.EntireColumn.Delete 'Deleta dados
+                        End With
+                        
+                            
+                        Application.DisplayAlerts = True
+                        
+                        Salvo = True 'Para não passar novamente para salvar
+                        
+                        With ThisWorkbook.Sheets(1)
+                            .Activate
+                            .Range("A1").Select
+                        End With
+                        
+                        ThisWorkbook.Close SaveChanges:=True 'Fecha a instância atual e salva alterações
+                        
+                        Salvo = False 'Reseta a variável
+                    Else
+                        MsgBox "Nome do Arquivo Já Existente!, Favor Escolher Outro.", vbOKOnly, "Nome Já Existente" 'Informa ao usuário
+                        GoTo ArquivoJaExiste 'Volta ao inicio
+                    End If
+                    
+                    Exit Sub 'Sai do da execução
+                End If
+            Next Plan
+            
+    'Caso não tenha achado dados nas planilhas ou tenha salvo em outro arquivo---------------------------------------
+            If ThisWorkbook.Sheets.Count > 1 Then 'Verifica se tem mais de 1
+                
+                Application.DisplayAlerts = False
+                
+                For I = ThisWorkbook.Sheets.Count To 2 Step -1 'Caso tenha percorre as planilhas
+                    ThisWorkbook.Sheets(I).Delete 'Deleta, deixando apenas 1
+                Next I
+            End If
+            
+            ThisWorkbook.Sheets(1).Name = "Evento" 'Renomeia a planilha
+                
+            Application.DisplayAlerts = True
+        End If
+    End If
+End Sub
