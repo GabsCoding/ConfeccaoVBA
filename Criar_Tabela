@@ -1,0 +1,585 @@
+'Class Gerar_Tabela---------------------------------------------
+'Variáveis para a tabela atual-------------
+Private PastaAtual As Workbook
+Private PlanAtual As Worksheet
+Private Inicio As Range
+Private Fim As Range
+'-------------------------------------------
+'Variáveis para a nova tabela---------------
+Private NovaPasta As Workbook
+Private NovaPlan As Worksheet
+Private Inicio2 As Range
+Private Fim2 As Range
+'-------------------------------------------
+
+Private Transferiu As Boolean 'Verificador de transferência de arquivos
+
+Private Ref As String 'Variável de referência
+
+'Inicializa a classe-----------------------
+Private Sub Class_Initialize()
+    Set PastaAtual = ThisWorkbook 'Recebe a pasta que está sendo usada
+    Set PlanAtual = PastaAtual.ActiveSheet 'Recebe a planilha que está sendo usada
+    
+    'Zera as variáveis da pasta atual
+    Set Inicio = Nothing
+    Set Fim = Nothing
+    Achado = False
+    '--------------------------------
+    
+    'Zera as variáveis da pasta nova
+    Set NovaPasta = Nothing
+    Set NovaPlan = Nothing
+    Set Inicio2 = Nothing
+    Set Fim2 = Nothing
+    '--------------------------------
+    
+    Encontrar 'Encontra a tabela da pasta atual
+End Sub
+'-------------------------------------------
+
+'Retorna o valor da variável Transferiu-----------
+Public Property Get Transferido() As Boolean
+    Transferido = Transferiu
+End Property
+'--------------------------------------------------
+
+'Encontra a Tabela Atual----------------------
+Private Sub Encontrar()
+    If Inicio Is Nothing And Fim Is Nothing Then 'Caso não tenha achado o início e o fim ainda
+        Set Inicio = PlanAtual.Cells.Find("*") 'Procura na tabela
+        
+        If Inicio Is Nothing Then 'Se não existir
+            Exit Sub  'Sai da execução
+        End If
+        
+        If Inicio.Row > 1 Then
+            If Not Inicio.Offset(-1, 0).Value Like "" Then 'Se possuir algo acima
+                Set Inicio = Inicio.End(xlUp) 'Pega a primeira informação de cima
+            End If
+        End If
+        
+        If Inicio.Column > 1 Then
+            If Not Inicio.Offset(0, -1).Value Like "" Then 'Se houver algo a esquerda
+                Set Inicio = Inicio.End(xlToLeft) 'Pega a informação mais a esquerda
+            End If
+        End If
+        
+        Set Fim = Inicio.CurrentRegion.SpecialCells(xlCellTypeLastCell) 'Fim recebe a última célua usada
+        
+        If Fim.Value Like "" And Fim.Row > 1 Then 'Caso seja vazio o fim
+            Set Fim = Fim.End(xlUp) 'Recebe a linha de cima
+        End If
+    End If
+End Sub
+'---------------------------------------------
+
+'Classifica as colunas----------------------------------------------------------
+Private Sub Classificar()
+    If Not Inicio Is Nothing And Not Fim Is Nothing Then 'Caso tenha tabela
+        With PlanAtual.Sort
+            .SortFields.Clear 'Limpa a classificação
+            .SortFields.Add2 PlanAtual.Range("C1").EntireColumn 'Descrição
+            .SortFields.Add2 PlanAtual.Range("D1").EntireColumn 'Preço
+            .SortFields.Add2 PlanAtual.Range("A1").EntireColumn, Order:=xlDescending 'Local 'Em ordem decrescente
+            .Header = xlYes
+            .SetRange PlanAtual.Range(Inicio, Fim) 'Configura o range
+            .Apply 'Classifica
+        End With
+    End If
+End Sub
+'--------------------------------------------------------------------------------
+
+'Ajusta todas as colunas-------------------------------------------------------------------------------
+Private Sub Ajustar_Colunas()
+    If Not Inicio Is Nothing And Not Fim Is Nothing Then
+        PlanAtual.Range(Inicio, Cells(Inicio.Row, Fim.Column)).EntireColumn.AutoFit 'Ajusta as colunas
+    End If
+End Sub
+'-----------------------------------------------------------------------------------------------------
+
+'Alinha todas as colunas------------------------------------------------------------
+Private Sub Alinhar_Colunas()
+    If Not Inicio Is Nothing And Not Fim Is Nothing Then
+        PlanAtual.Range("A1").EntireColumn.HorizontalAlignment = xlCenter
+        PlanAtual.Range("B1").EntireColumn.HorizontalAlignment = xlCenter
+        PlanAtual.Range("C1").EntireColumn.HorizontalAlignment = xlLeft
+        PlanAtual.Range("D1").EntireColumn.HorizontalAlignment = xlCenter
+        PlanAtual.Range("E1").EntireColumn.HorizontalAlignment = xlCenter
+        PlanAtual.Range("F1").EntireColumn.HorizontalAlignment = xlCenter
+        PlanAtual.Range("G1").EntireColumn.HorizontalAlignment = xlCenter
+    End If
+End Sub
+'----------------------------------------------------------------------------------------
+
+'Remove itens duplicados-------------------------------------------------------------
+Public Sub Remover_Duplicados()
+    If Not Inicio Is Nothing And Not Fim Is Nothing Then
+        PlanAtual.Range(Inicio, Fim).RemoveDuplicates Array(2, 4), Header:=xlYes 'Remove valores duplicados, pela coluna 2 Código e 4 Preço
+        PlanAtual.Cells.Replace "zzzz", "REDE", xlWhole 'Realiza a troca depois de remover duplicados
+    End If
+End Sub
+'------------------------------------------------------------------------------------
+
+'Edita do cabeçalho da tabela-------------------------------------------------------
+Private Sub Cabecalho()
+    If Not Inicio Is Nothing And Not Fim Is Nothing Then
+        Dim Cel As Range
+        
+        With PlanAtual.Range(Inicio, PlanAtual.Cells(Inicio.Row, Fim.Column)) 'Muda a cor do cabeçalho
+            .Interior.ColorIndex = 15 'Cinza Claro
+            .Font.ColorIndex = 0 'Preto
+            .Font.Size = 12 'Tamanho da fonte
+            .Font.Bold = True 'Negrito
+        End With
+        
+        Inicio.Value = "Região" 'Renomeia o título
+        Inicio.Offset(0, 1).Value = "Produto"
+        Inicio.Offset(0, 2).Value = "Desc. Ofert."
+        Inicio.Offset(0, 3).Value = "Preço Venda"
+        Inicio.Offset(0, 4).Value = "Cartão Zaffari"
+        Inicio.Offset(0, 5).Value = "Parc. Cartão"
+        Inicio.Offset(0, 6).Value = "Pct. Virtual"
+    End If
+End Sub
+'---------------------------------------------------------------------------------------
+
+'Compara os dados das planilhas-------------------------------------------------------------
+Private Sub Comparar()
+    If Not Inicio Is Nothing And Not Fim Is Nothing Then
+        Dim PlanNova As Worksheet 'Planilha com os dados novos
+        Dim PlanAntiga As Worksheet 'Planilha com os dados antigos
+        Dim Dado As Range
+        
+        Set PlanAntiga = PastaAtual.Sheets(PlanAtual.Index + 1) 'Seleciona a planilha antiga após a planilha atual
+        
+        Set PlanNova = PlanAtual 'Recebe a planilha com dados novos
+        
+        'Configura a planilha de comparação-----------------------------------
+        Set PlanAtual = PastaAtual.Sheets.Add 'Adiciona um planilha nova
+        PlanAtual.Move Before:=PlanNova 'Move para o início
+        PlanAtual.Name = "Comparação" 'Renomeia
+        '---------------------------------------------------------------------
+        
+        PlanNova.Range(Inicio, Fim).Copy PlanAtual.Range("A1") 'Copia a tabela nova para a primeira célula
+        
+        'Zera as variáveis para localizar---
+        Set Inicio = Nothing
+        Set Fim = Nothing
+        '------------------------------------
+        
+        Encontrar 'Encontra o inicio e o fim novamente na planilha atual (de comparação)
+        
+        If Not Inicio Is Nothing And Not Fim Is Nothing Then 'Caso tenha achado
+            Dim Plan2 As Integer 'Verificador se tem conteúdo em ambas planilhas
+            
+            Plan2 = 1 'Começa com 1 planilha
+            
+            If Not PlanAntiga.Range("A1").Value Like "" Then 'Se Tiver algo na planilha antiga
+                Dim Antiga As Range 'Percorre alterando
+                
+                PlanAntiga.Range("A1").CurrentRegion.Offset(1, 0).Copy PlanAtual.Cells(Fim.Row + 1, Inicio.Column) 'Copia retirando ocabeçalho para a planilha atual 1 linha abaixo
+                
+                Set Antiga = PlanAtual.Cells(Fim.Row + 1, Inicio.Column) 'Recebe o primeiro espaço da planilha antiga
+                
+                Do Until Antiga.Value Like "" 'Percorre até achar vazio
+                    Antiga.Value = "ANTIGA" 'Altera o texto interno
+                    Set Antiga = Antiga.Offset(1, 0) 'Percorre todas as linhas
+                Loop
+                
+                Set Fim = Inicio.CurrentRegion.SpecialCells(xlCellTypeLastCell) 'Reconfigura o fim
+                
+                If Fim.Value Like "" And Fim.Row > 1 Then 'Caso
+                    Set Fim = Fim.End(xlUp)
+                End If
+                
+                Plan2 = Plan2 + 1 'Adiciona mais 1 planilha
+            End If
+            
+            If Plan2 > 1 Then 'Se tiver mais de 1 planilha copiada
+                Classificar 'Classifica
+                
+                With PlanAtual.Range(Inicio.Offset(1, 0), Fim) 'Formatação condicional retirando o cabeçalho
+                    .FormatConditions.Delete 'Limpa as formatações condicionais
+                    .FormatConditions.Add xlUniqueValues 'Adiciona formatação para valores únicos
+                    
+                    With .FormatConditions(1) 'Com a formatação inserida
+                        .Font.ColorIndex = 3 'Vermelho
+                        .Font.Bold = True 'Negrito
+                    End With
+                End With
+                
+            End If
+        Else 'Caso não tenha achado
+        
+            Application.DisplayAlerts = False 'Desabilita os alertas
+            
+            PlanAtual.Delete 'Deleta a planilha de comparação
+            
+            Application.DisplayAlerts = True 'Habilita os alertas
+            
+            MsgBox "Não foi possível realizar a comparação!", vbOKOnly, "Erro" 'Informa o usuário
+        End If
+    End If
+End Sub
+'--------------------------------------------------------------------------------------------
+
+'Transfere os dados entre pastas de trabalho--------------------------------------------------------------------
+Public Sub Tranferir_Dados()
+    Dim Arquivos As Variant 'Arquivos selecionados
+    
+    Arquivos = Application.GetOpenFilename("Arquivos Excel (*.xls*), *.xls*", , "Importar Aquivos", , True) 'Arquivos selecionados pelo usuário
+    
+    If Not IsArray(Arquivos) Then 'Verifica se não é um array
+        If Arquivos = False Then 'Caso nenhuma arquivo tenha sido selecionado
+            MsgBox "Nenhum arquivo selecionado!", vbOKOnly, "Seleção de Arquivos" 'Informa
+            Transferiu = False 'Informa que não houve transferência
+            Exit Sub 'Sai da sub
+        End If
+    End If
+    
+    If Not Inicio Is Nothing And Not Fim Is Nothing Then 'Caso tenha tabela na pasta atual
+        PastaAtual.Sheets.Add Before:=PlanAtual 'Adiciona nova planilha
+        Set PlanAtual = PastaAtual.Sheets(PlanAtual.Index - 1) 'Configura como PlanAtual
+        PlanAtual.Name = "Importação Nova" 'Renomeia
+    End If
+    
+    Set Inicio = PlanAtual.Range("A1") 'Configura a primeira célula
+    Set Fim = Inicio 'Configura o fim 'Configura o fim
+    
+    'Realiza a Transferência----------------------------------------------------------------------------------------------------
+    Dim Cel As Range 'Célula auxiliar
+    Dim PrimeiraPasta As Boolean 'Marca se é a primeira pasta a ser tratada
+    Dim I As Integer 'Pega a string do array arquivos
+    
+    PrimeiraPasta = True 'Configura sendo a primeira pasta
+    
+    For I = LBound(Arquivos) To UBound(Arquivos) 'Para cada arquivo na pasta selecionada
+        Set NovaPasta = GetObject(Arquivos(I)) 'Configura a pasta de trabalho
+        Set NovaPlan = NovaPasta.Sheets(1) 'Configura a planilha 1
+        
+        If Encontrar2 Then 'Se foi encontrado algo
+            Identificar_Evento 'Chama a função
+        
+            NovaPlan.Range(NovaPlan.Cells(Inicio2.Row + 1, Inicio2.Column), Fim2).Font.Color = 0 'Insere preto no texto excluindo apenas o cabeçalho
+            
+            If Not PrimeiraPasta Then 'Se não for a primeira pasta
+                Set Inicio2 = Inicio2.Offset(1, 0) 'Retira o cabeçalho da planilha nova
+                Set Fim = Fim.Offset(1, 0) 'Pula para linha de baixo do fim da planilha atual
+            End If
+            
+            Arrumar_Desc 'Arruma a descrição
+            
+            NovaPlan.Cells.WrapText = False 'Retira a quebra de texto da planilha nova
+            
+            NovaPlan.Range(Inicio2, Fim2).Copy PlanAtual.Cells(Fim.Row, Inicio.Column) 'Copia e cola
+            
+            Set Fim = Inicio.CurrentRegion.SpecialCells(xlCellTypeLastCell) 'Reconfigura o fim
+            
+            If Fim.Value Like "" And Fim.Row > 1 Then 'Caso não tenha informação
+                Set Fim = Fim.End(xlUp) 'Pega a linha de cima
+            End If
+            
+            PlanAtual.Cells.WrapText = False 'Retira quebra de texto da planilha atual
+            
+            PrimeiraPasta = False 'Marca que não é mais a primeira pasta
+        End If
+        
+        'Zera as variázeis------------------
+        Set Inicio2 = Nothing
+        Set Fim2 = Nothing
+        Set NovaPlan = Nothing
+        NovaPasta.Close SaveChanges:=False 'Fecha o arquivo
+        Set NovaPasta = Nothing
+        '-----------------------------------
+    Next I
+    '----------------------------------------------------------------------------------------------------------------------------------------------
+    
+    If PastaAtual.Sheets.Count < 2 Then 'Se tiver apenas 1 planilha
+        PlanAtual.Name = "Importação" 'Renomeia
+    End If
+    
+    Classificar 'Classifica
+    
+    Transferiu = True 'Informa ter transferido
+End Sub
+'--------------------------------------------------------------------------------------------------------------------------------------------------
+
+'Procura na nova pasta de trabalho-----------------------------------------------------------------------
+Private Function Encontrar2() As Boolean
+    If Inicio2 Is Nothing And Fim2 Is Nothing Then
+        Set Inicio2 = NovaPlan.Cells.Find("*") 'Encontra algo na nova pasta de trabalho
+        
+        If Inicio2 Is Nothing Then 'Se não existir nada
+            Encontrar2 = False 'Retorna falso
+            Exit Function 'sai da função
+        End If
+        
+        'Procura a primeira célula---------------
+        If Inicio2.Row > 1 Then
+            If Not Inicio2.Offset(-1, 0).Value Like "" Then
+                Set Inicio2 = Inicio2.End(xlUp)
+            End If
+        End If
+        
+        If Inicio2.Column > 1 Then
+            If Not Inicio2.Offset(0, -1).Value Like "" Then
+                Set Inicio2 = Inicio2.End(xlToLeft)
+            End If
+        End If
+        '-----------------------------------------
+        
+        Set Fim2 = Inicio2.CurrentRegion.SpecialCells(xlCellTypeLastCell) 'Encontra o fim
+        
+        If Fim2.Value Like "" And Fim2.Row > 1 Then
+            Set Fim2 = Fim2.End(xlUp)
+        End If
+        
+        Encontrar2 = True
+        
+    End If
+End Function
+'-----------------------------------------------------------------------------------------------------------
+
+'Identifica o evento e Preenche a região----------------------------------------------------------------------
+Private Sub Identificar_Evento()
+    If Not Inicio2 Is Nothing And Not Fim2 Is Nothing Then 'Caso tenha dados
+        Dim Regiao As String 'Armazena o nome a ser inserido de identificação da região
+        Dim Cor As Integer 'Registra a cor a ser inserida na linha
+        Dim Cel As Range 'Percorre a tabela
+        
+        If LCase(NovaPasta.Name) Like "*nac*" Then 'Caso for Nacional
+            Regiao = "NAC"
+            Cor = 35 'Verde claro
+        ElseIf LCase(NovaPasta.Name) Like "*pio*" Then 'Caso for Pioneiro
+            Regiao = "PIO"
+            Cor = 20 'Azul claro
+        ElseIf LCase(NovaPasta.Name) Like "*nh*" Then 'Caso for Novo Hamburgo
+            Regiao = "NH"
+            Cor = 19 'Laranja claro
+        ElseIf LCase(NovaPasta.Name) Like "*dc*" Then 'Caso for Diário de Canoas
+            Regiao = "DCanoas"
+            Cor = 19 'Laranja claro
+        ElseIf LCase(NovaPasta.Name) Like "*vs*" Then 'Caso for Vale dos Sinos
+            Regiao = "VS"
+            Cor = 19 'Laranja claro
+        Else                                          'Caso não seja nenhum será Rede(Porto Alegre)
+            Regiao = "zzzz" 'Acrescenta valor neutro para fazer a classificação
+            Cor = 2 'Branco
+        End If
+        
+        Set Cel = Inicio2 'Recebe o inicio da tabela nova
+        
+        Do Until Cel.Value2 Like "" 'Percorre até achar vazio
+            With Cel
+                .Value2 = Regiao 'Insere a região
+                .Font.Bold = True 'Negrito
+            End With
+            
+            With NovaPlan.Range(Cel, NovaPlan.Cells(Cel.Row, Fim2.Column)) 'Para o intervalo da linha atual
+                .Interior.ColorIndex = Cor 'Recebe a cor da linha
+            End With
+            
+            Parcela Cel.Offset(0, 12) 'Manda a célula com a parcela
+            
+            If Cel.Offset(1, 0).MergeCells Then 'Caso a linha debaixo seja mesclada
+                Remover_Linhas Cel.Offset(1, 0) 'Remove a linha
+            
+            Else 'Caso não seja mesclado
+            
+                Set Cel = Cel.Offset(1, 0) 'Passa para a próxima linha
+            End If
+            
+        Loop
+        
+        Remover_Colunas 'Remove as colunas
+        
+    End If
+End Sub
+'-----------------------------------------------------------------------------------------------------------------
+
+'Diminui o tamanho da parcela---------------------------------------------
+Private Sub Parcela(ByRef Cel As Range)
+    If Not Inicio2 Is Nothing And Not Fim2 Is Nothing Then 'Caso tenha tabela
+        If Not Cel.Value2 Like "" Then 'Caso tenha informação na célula
+            Dim PosIni As Integer 'Posição inicial da parcela
+            Dim PosFim As Integer 'Posição Final da parcela
+            
+            PosIni = InStr(1, Cel.Value2, "-", vbTextCompare) 'Procura o hífen
+            PosFim = InStr(1, LCase(Cel.Value2), "x", vbTextCompare) 'Procura o "x"
+            
+            If PosIni > 0 And PosFim > 0 Then 'Caso tenha achado
+                Cel.Value2 = Mid(Cel.Value2, PosIni + 1, PosFim - PosIni) 'Pega o texto retirando o hífen até o x
+            End If
+        End If
+    End If
+End Sub
+'-------------------------------------------------------------------------
+
+'Remove as linhas da planilha antes de importá-la-----------------------------------------------
+Private Sub Remover_Linhas(ByRef Cel As Range)
+    If Not Inicio2 Is Nothing And Not Fim2 Is Nothing Then 'Se existir planilha
+        Cel.EntireRow.Delete xlUp 'Deleta a linha inteira
+    End If
+End Sub
+'---------------------------------------------------------------------------------------------
+
+'Remove colunas não usadas---------------------------------------------------------------
+Private Sub Remover_Colunas()
+    If Not Inicio2 Is Nothing And Not Fim2 Is Nothing Then
+        NovaPlan.Range("D1,E1,F1,G1,I1,J1,K1,L1,N1,P1,Q1,R1").EntireColumn.Delete xlToLeft 'Exclui colunas
+        NovaPlan.Range(Inicio2, Fim2).Borders.LineStyle = xlContinuous 'Acrescenta borda
+    End If
+End Sub
+'----------------------------------------------------------------------------------------
+
+'Arruma a descrição da tabela------------------------------------------------------------------------------------------------
+Private Sub Arrumar_Desc()
+    If Not Inicio2 Is Nothing And Not Fim2 Is Nothing Then
+        Dim Texto As Range
+        Dim Letra As Long
+        
+        Set Texto = Inicio2.Offset(1, 2) 'Configura a variável para a descrição
+    
+        Do Until Texto.Value Like "" 'Perocorre até vazio
+            Texto.Value2 = Trim(Texto.Value2) 'Retira os espaços
+            
+            For Letra = 2 To Len(Texto.Value)
+                
+                        'Caso a letra atual seja maiúscula         'E          'A letra anterior for minúscula           'Ou    'O caractere anterior for vírgula           'Ou         'O caractere for ponto
+                If (CStr(Mid(Texto.Value2, Letra, 1)) Like "[A-Z]" And (CStr(Mid(Texto.Value2, Letra - 1, 1)) Like "[a-z]" Or CStr(Mid(Texto.Value2, Letra - 1, 1)) Like "," Or CStr(Mid(Texto.Value2, Letra - 1, 1)) Like ".")) Then
+                            'Recebe até 1 antes da letra maiúscula 'Espaço   'Recebe da letra maiúscula até o fim
+                    Texto.Value2 = Left(Texto.Value2, Letra - 1) & " " & Mid(Texto.Value2, Letra, Len(Texto.Value2)) 'Texto recebe-se adicionando espaço
+                End If
+                
+            Next Letra
+            
+            Set Texto = Texto.Offset(1, 0) 'Passa para a proxima linha
+        Loop
+    End If
+End Sub
+'---------------------------------------------------------------------------------------------------------------------------------------------
+
+'Importa referência para a tabela atual---------------------------------------------------------------------------------
+Public Sub Adicionar_Referencia()
+Resetar: 'Informa nova referência
+    If Ref Like "" Then 'Caso não tenha referência
+        Dim Arquivo As Variant
+        
+        Arquivo = Application.GetOpenFilename("Arquivo Excel (*.xls*),*.xls*", , "Importar Referência", , False) 'Pega arquivo do usuário
+        
+        If Arquivo = False Then 'Caso não tenha selecionado
+            MsgBox "Referência Não Selecionada", vbOKOnly, "Erro" 'Informa
+            Exit Sub 'Sai da execução
+        End If
+        
+        Ref = Arquivo 'Caso informou insere na variável
+        Exit Sub 'Sai da execução
+    End If
+    
+    Dim Resp As Integer
+    
+    Resp = MsgBox("Referência Já Existente!" & Chr(13) & "Deseja Alterar?", vbYesNo, "Referência Existente") 'Caso o usuário queira redefinir
+    
+    If Resp = vbYes Then
+        Ref = ""
+        GoTo Resetar
+    End If
+End Sub
+'----------------------------------------------------------------------------------------------------------------------------------------
+
+'Identifica produtos que estão no GU's---------------------------------------------------------------------------------------------------
+Private Sub Analisar_Referencia()
+    If Not Ref Like "" Then 'Caso tenha referência
+        Dim Pasta As Workbook
+        Dim Plan As Worksheet
+        Dim Cel As Range
+        Dim ValorAtual As Range
+        
+        Set Pasta = GetObject(Ref) 'Pega o arquivo
+        Set Plan = Pasta.Sheets(1) 'Configura na pasta 1
+        Set Cel = Plan.Cells.Find("???????") 'Encontra o código na pasta nova
+        
+        If Not Cel Is Nothing Then 'Caso tenha achado
+            Set Cel = Cel.Offset(1, 0) 'Retira o cabeçalho
+            
+            Set ValorAtual = ThisWorkbook.Sheets(1).Cells.Find("???????") 'Encontra o código na pasta atual
+            
+            If Not ValorAtual Is Nothing Then 'Caso tenha achad
+                Set ValorAtual = ValorAtual.Offset(1, 0) 'Retira o cabeçalho
+            
+                Do Until Cel.Value2 Like "" 'Percorre até o fim da pasta nova
+                    Do Until ValorAtual.Value2 Like "" 'Percorre até o fim da pasta atual
+                        If ValorAtual.Value2 Like Cel.Value2 Then 'Caso o valor seja igual
+                            With PlanAtual.Range(Cells(ValorAtual.Row, 1), Cells(ValorAtual.Row, 7)) 'Altera a cor a linha de vermelho
+                                .Font.ColorIndex = 3
+                                .Font.Bold = True
+                            End With
+                        End If
+                        
+                        Set ValorAtual = ValorAtual.Offset(1, 0) 'Passa para o próximo
+                        
+                        DoEvents
+                    
+                    Loop
+                    
+                    
+                    Set Cel = Cel.Offset(1, 0) 'Passa para o próximo
+                    
+                    DoEvents
+                Loop
+                
+            End If
+            
+        End If
+        
+        'Zera tudo
+        Set Cel = Nothing
+        Set ValorAtual = Nothing
+        Set Plan = Nothing
+        Pasta.Close SaveChanges:=False
+        Set Pasta = Nothing
+        Ref = ""
+        
+    End If
+End Sub
+'-----------------------------------------------------------------------------------------------------------------------------------------
+
+'Termina a classe----------------------------------
+Private Sub Class_Terminate()
+    Remover_Duplicados
+    
+    Cabecalho
+    
+    'Ajusta a planilha com os dados inseridos
+    Ajustar_Colunas
+    Alinhar_Colunas
+    '---------------------------------------
+    
+    If PastaAtual.Sheets.Count > 1 Then 'Se tiver mais de uma planilha
+        Comparar 'Compara
+        
+        'Ajusta a planilha com os dados de comparação
+        Ajustar_Colunas
+        Alinhar_Colunas
+        '-----------------------------------------
+    End If
+    
+    Analisar_Referencia 'Verifica se há igualidade
+    
+    'Zera as variáveis da pasta atual
+    Set PastaAtual = Nothing
+    Set PlanAtual = Nothing
+    Set Inicio = Nothing
+    Set Fim = Nothing
+    Achado = False
+    '--------------------------------
+    
+    'Zera as variáveis da pasta nova
+    Set NovaPasta = Nothing
+    Set NovaPlan = Nothing
+    Set Inicio2 = Nothing
+    Set Fim2 = Nothing
+    '--------------------------------
+End Sub
+'---------------------------------------------------
